@@ -2,6 +2,60 @@
 
 All notable changes to Pattaya will be documented in this file.
 
+## [0.1.9.0] - 2026-03-17
+
+### Added
+- Design review pipeline: phase 12 (design audit) and phase 13 (design fix) inserted before scoring
+- AI Slop detection: 30-item condensed checklist catching purple gradients, 3-column grids, and generic AI patterns
+- DESIGN.md generation: phase 12 extracts design system (fonts, colors, spacing) from rendered output
+- Design style profiles: `pipeline/design-styles/` with dieter-rams, brutalist, and playful philosophies
+- Design Quality as 6th scoring dimension (10% weight) with letter-grade rubric
+- Dual weight tables: 6-dim weights when design_quality present, 5-dim for backward compatibility
+- AI Slop badge and design system preview (color dots + font name) in Mission Control score cards
+- Design Report Card section in email template with per-category grades
+- `design_review` and `design_style` config options in pipeline/config.yml
+- `{DESIGN_STYLE_NAME}` and `{DESIGN_STYLE_PRINCIPLES}` template variables for phases 12-13
+- Auto-detect skip: design phases skipped when output has no .html files
+- Before/after screenshot capture in phase 13 (design fix)
+- Font upgrade detection with pairing recommendations by product type
+
+### Changed
+- Retro/scoring moved from phase 12 to phase 14
+- Pipeline diagram updated: Phase 1-6 → bug-fix → design 12-13 → Score 14
+- Validation suite expanded from 171 to 200 checks (design phases, styles, config)
+- `buildPrompt()` now includes design_quality when present in clipboard text
+
+### Fixed
+- Dangling markdown code fence in CLAUDE.md after score.json schema
+
+## [0.1.8.0] - 2026-03-17
+
+### Added
+- Environment Variables section in Mission Control — dynamic key-value rows for API keys and secrets
+- Generic env var management: add, edit, delete keys from the web UI with values stored in `.env`
+- Sentinel protocol: only modified keys are sent on save; untouched saved values are never exposed or overwritten
+- Duplicate key name prevention and PATTAYA_ prefix rejection in the frontend
+- `{ENV_VARS}` template variable — pipeline agents receive user-configured API keys during QA testing
+- `--port` flag for setup-server.py (used by tests)
+- Smoke test suite (`tests/test-env-vars.py`) — 6 tests covering save, load, round-trip, SMTP coexistence, deletion, and prefix blocking
+
+### Fixed
+- `.env` write safety: `save_config()` now uses read-modify-write instead of overwriting the entire file, so saving SMTP credentials no longer clobbers user env vars (and vice versa)
+- Delete handler in env var UI correctly preserves the deletion signal for saved keys
+
+### Changed
+- Pre-flight checks now collect non-PATTAYA_ env vars from `.env` and pass them to pipeline agents
+
+## [0.1.7.1] - 2026-03-16
+
+### Fixed
+- Pipeline now detects existing winner output from prior runs and starts in iteration mode instead of greenfield — enables cross-invocation iteration
+- Final round winner is now committed to git (previously only intermediate rounds were committed, so winner code was lost between conversations)
+- Removed `output/` from `.gitignore` so winner code persists in the repository
+
+### Changed
+- Pipeline config defaults: parallel_runs 5→3, rounds 10→7
+
 ## [0.1.7.0] - 2026-03-16
 
 ### Added

@@ -29,7 +29,7 @@ QA → fix → score cycles.
   │  │    {MODE} = greenfield (round 1) | iteration (2+)│  │
   │  │                                                  │  │
   │  │  All runs execute in lock-step:                  │  │
-  │  │    Phase 1-6 → bug-fix divergence → Phase 12     │  │
+  │  │    Phase 1-6 → bug-fix → design 12-13 → Score 14│  │
   │  └──────────────────────────────────────────────────┘  │
   │       │                                                │
   │       ▼                                                │
@@ -90,6 +90,8 @@ Read `pipeline/config.yml` for configuration:
 - `rounds` (R) — the user may override via prompt: "run 5 rounds"
 - `auto_accept_winner` — when true or R > 1, auto-select the winner
 - `style` — optional name of a legendary engineer (e.g. "carmack")
+- `design_review` — when true, run design audit + fix phases (12-13)
+- `design_style` — optional design philosophy for design review phases
 
 **Style resolution (if `style` is set):**
 Read `pipeline/styles/{style}.md`. If the file doesn't exist, STOP with:
@@ -99,6 +101,15 @@ Extract the file contents as `STYLE_PRINCIPLES` and the `# heading` line
 as `STYLE_NAME`. If `style` is not set, `{STYLE_NAME}` becomes "Default"
 and `{STYLE_PRINCIPLES}` becomes "(No specific style — use your best
 engineering judgment.)"
+
+**Design style resolution (if `design_style` is set):**
+Read `pipeline/design-styles/{design_style}.md`. If the file doesn't
+exist, STOP with: "Design style '{design_style}' not found. Available:
+{list of .md files in pipeline/design-styles/ without extension}."
+Extract the file contents as `DESIGN_STYLE_PRINCIPLES` and the
+`# heading` line as `DESIGN_STYLE_NAME`. If `design_style` is not set,
+`{DESIGN_STYLE_NAME}` becomes "Default" and `{DESIGN_STYLE_PRINCIPLES}`
+becomes "(No specific design style — use your best design judgment.)"
 
 **Email delivery check:** Run the SMTP probe to verify email will work
 before spending 30+ minutes on the pipeline:
@@ -115,14 +126,51 @@ If the probe fails, **STOP** and show the error. Common fixes:
 If `email.method` is `file-only` in config.yml, the probe is skipped
 and a warning is shown: "Email disabled — results will be saved to disk only."
 
+**Environment variables (for QA testing):**
+
+Read `.env` and collect any non-`PATTAYA_` keys as user-supplied env vars
+for pipeline agents. These are API keys the user configured in Mission
+Control for the product being built (e.g., `ODDS_API_KEY`, `WEATHER_KEY`).
+
+```bash
+grep -v '^PATTAYA_' .env 2>/dev/null | grep '=' || echo "NO_USER_ENV_VARS"
+```
+
+If user env vars exist, format them as `{ENV_VARS}`:
+```
+Environment variables available for this build:
+  ODDS_API_KEY=<value from .env>
+  WEATHER_KEY=<value from .env>
+Use these in your implementation when the product spec references external APIs.
+```
+
+If no user env vars, `{ENV_VARS}` is empty string.
+
 ### Step 2: Round Loop
 
 Initialize round state:
 - `current_round` = 1
 - `total_rounds` = R (from config or prompt override)
-- `mode` = "greenfield"
-- `existing_code_summary` = "" (empty for round 1)
 - `round_results` = [] (accumulates across rounds)
+
+**Detect prior winner output (cross-invocation iteration):**
+
+Check if `output/` exists and contains files from a prior pipeline run:
+
+```bash
+test -d "output" && find output -type f | head -1 | grep -q . && echo "HAS_OUTPUT" || echo "NO_OUTPUT"
+```
+
+If `HAS_OUTPUT`:
+- `mode` = "iteration"
+- `existing_code_summary` = output of `ls -la output/` + first 5 lines
+  of each source file (enough context for the phase prompts)
+- Tell the user: "Found existing output from prior run. Starting in
+  iteration mode — agents will improve the existing code, not rewrite it."
+
+If `NO_OUTPUT`:
+- `mode` = "greenfield"
+- `existing_code_summary` = ""
 
 **For each round (1 through R), execute Steps 2a–2f:**
 
@@ -167,6 +215,9 @@ and pass its contents as the resume prompt. Replace template variables:
 - `{EXISTING_CODE_SUMMARY}` — file listing of output/ (empty if greenfield)
 - `{STYLE_NAME}` — display name from style profile heading (or "Default")
 - `{STYLE_PRINCIPLES}` — full contents of the style profile (or generic fallback)
+- `{ENV_VARS}` — user-supplied environment variables for QA testing (see below)
+- `{DESIGN_STYLE_NAME}` — display name from design style profile (or "Default")
+- `{DESIGN_STYLE_PRINCIPLES}` — full contents of the design style profile (or generic fallback)
 
 ### Step 2c: Bug-Fix Divergence
 
@@ -175,17 +226,38 @@ After phase 06 (QA), read each run's QA report from
 
 For each run:
 - If QA found bugs: resume with phases 07 → 08 → 09 → 10 → 11
-- If QA found no bugs: skip to phase 12
+- If QA found no bugs: skip to design review (phase 12)
 
 Bug-fix loop: after phase 11 (QA confirm), check again. If bugs remain,
 loop back to phase 07. **Maximum 3 bug-fix cycles.** After 3 cycles,
-proceed to phase 12 with a score penalty note.
+proceed to design review with a score penalty note.
 
 Runs that don't need fixes wait idle while others fix.
 
+### Step 2c.5: Design Review & Fix (Conditional)
+
+**Auto-detect:** Check if the run's `output/` contains any `.html` files:
+```bash
+find {WORKTREE}/output -name '*.html' -type f | head -1 | grep -q . && echo "HAS_HTML" || echo "NO_HTML"
+```
+
+Also check `design_review` in config.yml. If `design_review: false` OR
+`NO_HTML`, skip phases 12-13 entirely for this run.
+
+**If design review runs:**
+Resume each run with phase 12 (design review), then phase 13 (design fix).
+Replace template variables:
+- `{DESIGN_STYLE_NAME}` — from design style resolution (or "Default")
+- `{DESIGN_STYLE_PRINCIPLES}` — from design style file (or generic fallback)
+
+Each run writes:
+- `.context/runs/run-{id}/phase-12-design-review.md`
+- `.context/runs/run-{id}/design-scores.json`
+- `.context/runs/run-{id}/phase-13-design-fix.md`
+
 ### Step 2d: Retro & Scoring
 
-Resume all N agents with phase 12 (retro + scoring). Each agent writes:
+Resume all N agents with phase 14 (retro + scoring). Each agent writes:
 - `.context/runs/run-{id}/score.json` — structured scores
 - `.context/runs/run-{id}/retro.md` — full retrospective
 - `.context/runs/run-{id}/highlight.md` — best code snippet
@@ -200,6 +272,7 @@ Read all `score.json` files. Expected format:
   "test_coverage": 6,
   "ux_polish": 9,
   "spec_adherence": 8,
+  "design_quality": 7,
   "average": 7.6,
   "bugs_remaining": 0,
   "fix_cycles_used": 1,
@@ -207,6 +280,10 @@ Read all `score.json` files. Expected format:
   "highlight": "The most elegant piece of code..."
 }
 ```
+
+Note: `design_quality` may be absent if design review was skipped.
+When ranking, use `average` regardless — it already accounts for the
+correct weight table.
 
 Rank runs by `average` score (descending). Break ties by `bugs_remaining`
 (fewer is better), then `fix_cycles_used` (fewer is better).
@@ -226,7 +303,7 @@ Store this round's results in `round_results`:
 
 ### Step 2f: Winner Carry-Forward
 
-If this is NOT the final round:
+**For EVERY round (including the final round):**
 
 1. Identify the winner's worktree path (returned by the Agent tool).
 2. **Verify the worktree exists and has output/:**
@@ -246,7 +323,7 @@ If this is NOT the final round:
    git add output/
    git commit -m "round-{N}({WINNER_ID}): {one-line summary from CEO plan}
 
-   Score: {average}/10 (F:{func} Q:{quality} T:{tests} U:{ux} S:{spec})
+   Score: {average}/10 (F:{func} Q:{quality} T:{tests} U:{ux} S:{spec} D:{design})
    Winner: {WINNER_ID} out of {N} parallel runs
    Files: {count} files in output/"
    ```
@@ -254,12 +331,13 @@ If this is NOT the final round:
    ```bash
    git log --oneline -1
    ```
-6. Update mode for next round:
+
+**If this is NOT the final round**, also update mode for next round:
    - `mode` = "iteration"
    - `existing_code_summary` = output of `ls -la output/` + first 5 lines
      of each source file (enough context for the phase prompts)
 
-**Then continue to the next round (back to Step 2a).**
+   **Then continue to the next round (back to Step 2a).**
 
 ### Step 3: Final Report
 
