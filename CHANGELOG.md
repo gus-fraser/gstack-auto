@@ -2,6 +2,77 @@
 
 All notable changes to Pattaya will be documented in this file.
 
+## [0.1.15.0] - 2026-03-25
+
+### Added
+- **Mission Control web service:** Flask app for running gstack-auto as a service. Google OAuth login, invite-only waitlist, admin panel for user approval.
+- **Office Hours chat:** Browser-based product spec creation via Claude-powered conversational AI with SSE streaming. Template picker for common project types.
+- **Build handoff ceremony:** JWT build tokens with one-time nonces and HMAC-SHA256 payload integrity. Atomic check-and-create with BEGIN IMMEDIATE for concurrent build limits.
+- **Machine API endpoints:** `/api/v1/results` and `/api/v1/progress` for pipeline-to-server communication with bearer token auth and build ownership verification.
+- **Build results dashboard:** Per-user build history, detail views with phase progress and scoring breakdowns.
+- **Email notifications:** SMTP-based build completion alerts via `app/services/notify.py`.
+- **Spend tracking:** Per-user daily token ceiling with automatic disable at limit.
+- **45 integration tests:** Full coverage of auth, builds, office hours, API, admin, tokens, and spend tracking.
+
+### Fixed
+- **API IDOR vulnerability:** Build endpoints now verify `user_id` ownership on all queries.
+- **Nonce TOCTOU race:** Replaced SELECT-then-UPDATE with atomic single UPDATE for nonce consumption.
+- **HMAC verification gap:** Results endpoint now validates `X-Payload-SHA` header when present.
+- **Build limit race condition:** Wrapped concurrent build check in BEGIN IMMEDIATE transaction.
+- **Progress reopening terminal builds:** `update_build_progress` now guards against reopening completed/failed builds.
+- **Nonce burn on parse failure:** Moved nonce consumption after JSON body validation so parse failures are retryable.
+- **SECRET_KEY volatility:** Now requires env var (no random default that invalidates sessions on restart).
+
+## [0.1.14.0] - 2026-03-25
+
+### Added
+- **v2 pipeline architecture:** 13 skill-modeled phases replacing v1's 13 custom phases. New phase sequence: CEO Plan → Adversarial → Eng Plan → Adversarial → Design Plan → Adversarial → Eng Plan v2 → Adversarial → Implement → Ship → QA → Document → Score.
+- **Dual adversarial review system:** Configurable cross-model review (Claude + Codex) at phases 02, 04, 06, 08. Orchestrator-level execution with `{ADVERSARIAL_FINDINGS}` injection into subsequent phases.
+- **Follow-up question system:** Budget-controlled mid-run questions (`follow_up_budget` in config.yml). Phases 01, 03, 07, 09, 11 can emit `FOLLOW_UP_QUESTION:` lines. Orchestrator deduplicates across N parallel runs via LLM call and broadcasts answers via `{FOLLOW_UP_ANSWERS}`.
+- **Design doc discovery:** Orchestrator checks `~/.gstack/projects/` for approved `/office-hours` design docs before reading product-spec.md. Design doc is injected as `{DESIGN_DOC}` — a binding constraint for phase 01.
+- **Bug-fix sub-loop phases:** 11a (fix plan), 11b (implement fix), 11c (re-QA) — dedicated sub-phases replacing v1's shared fix phases.
+- **16 v2 phase prompt files:** 01-plan-ceo.md through 13-retro-score.md plus 11a/11b/11c sub-loop, all with autonomy markers, template variables, and no-skill/no-AskUserQuestion directives.
+- **153 validation checks:** Complete v2 test suite covering phase files, autonomy directives, namespace isolation, template variables, follow-up question support, design DNA, config, dead code cleanup, CLAUDE.md v2 content, and server integration.
+
+### Changed
+- **CLAUDE.md:** Full v2 orchestrator rewrite — gstack-auto branding, adversarial review orchestration, follow-up question system, design doc discovery, safe winner copy (atomic temp dir swap), partial failure handling.
+- **pipeline/config.yml:** Added `adversarial_reviews: ["02", "08"]` and `follow_up_budget: 3`. Updated header to "gstack-auto Pipeline Configuration (v2)".
+- **index.html + dashboard.html:** Updated PHASE_NAMES to v2 (13 phases with adversarial review labels).
+- **README.md:** Updated pipeline diagram, phase list, getting started (office hours entry point), and config examples for v2.
+- **TODOS.md:** Removed superseded v1 items, added v2 items (follow-up question validation, cross-run scoring, style adherence dimension, N>3 differentiation).
+
+### Fixed
+- **XSS in index.html:** `ai_slop_grade` now escaped with `esc()`. `colorDots()` CSS injection prevented with allowlist regex for safe color values.
+- **Stale artifact references in phase 09:** Fixed v1 artifact names (`phase-03-implement.md`) to v2 (`phase-07-plan-eng-v2.md`).
+
+### Removed
+- **pipeline/gen-phases.mjs:** Dead v1 code (auto-generated bug-fix loop phases).
+- **pipeline/phase-config.json:** Dead v1 code (phase generation config).
+- **12 v1 phase files:** 02-plan-eng.md, 03-implement.md, 04-review.md, 05-ship.md, 06-qa.md, 07-plan-bugfix.md, 08-implement-fix.md, 09-review-and-commit-fix.md, 10-qa-confirm.md, 11-design-review.md, 12-design-fix.md.
+
+## [0.1.13.0] - 2026-03-18
+
+### Added
+- **Multi-tenant Twitter SaaS:** Complete FastAPI application with Google OAuth, per-user Twitter OAuth 1.0a, 8-table SQLite schema, encrypted credentials, admin panel, engagement leaderboard, mobile swipe approval, and 3-step onboarding wizard.
+- **Pipeline phase prompt updates:** Synced phases 04 (review), 06 (QA), 07 (plan-bugfix), 08 (implement-fix), 11 (design-review), and 13 (retro-score) to gstack v0.7.3+ artifact formats — 4-pass review structure, 8-category health scoring, 10-category design audit with dual weight tables.
+- **Atomic send claims:** `claim_reply_for_send()` with `UPDATE ... WHERE ... RETURNING` prevents duplicate Twitter posts from concurrent scheduler invocations.
+- **Engagement upsert race fix:** Replaced SELECT-then-INSERT/UPDATE with `INSERT ... ON CONFLICT DO UPDATE` for engagement tracking.
+- **LLM output validation:** Variant label allowlist (`A`–`E`) rejects unexpected Claude output before DB write.
+- **239 tests passing:** Full test coverage for multi-tenant app including crypto, jobs, drafter, DB, routes, edge cases, and regression suites.
+
+### Fixed
+- Admin route missing `RedirectResponse` import causing NameError on user toggle.
+- Session middleware hardcoded fallback secret renamed to `INSECURE-DEV-ONLY` (app exits before serving if `AUTH_SECRET_KEY` missing).
+
+### Removed
+- Nested `output/output/` duplicate directory (46 files, 8,234 lines).
+- Committed `__pycache__/` and `.pytest_cache/` files from tracking.
+
+## [0.1.12.1] - 2026-03-18
+
+### Changed
+- **Gitignore output/ and product-spec.md:** Pipeline-generated code (`output/`), user product specs (`product-spec.md`), and scoring history (`results-history.json`) are now gitignored. These are per-user artifacts that shouldn't be tracked in the repo.
+
 ## [0.1.12.0] - 2026-03-17
 
 ### Added
