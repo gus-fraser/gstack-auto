@@ -1,42 +1,114 @@
-# Design System — What to Wear
+# Design System -- Hudson LP Portal
 
-## Philosophy
-Playful warmth meets Dieter Rams clarity. Every element earns its place,
-but the personality comes through in conversational copy, weather-reactive
-color palettes, and smooth micro-interactions.
-
-## Color Palettes (weather-reactive)
-Background gradient and accent shift based on conditions:
-
-| Condition  | Background          | Accent  | Text    |
-|-----------|---------------------|---------|---------|
-| Clear     | #FFD700 → #FF8C00   | #FF6B35 | Dark    |
-| Cloudy    | #87CEEB → #B0C4DE   | #5B8FB9 | Dark    |
-| Fog       | #C8C8C8 → #A0A0A0   | #708090 | Dark    |
-| Drizzle   | #9B8EC1 → #7B68AE   | #DDA0DD | Light   |
-| Rain      | #6A5ACD → #483D8B   | #9370DB | Light   |
-| Snow      | #E8E8FF → #B0C4DE   | #4169E1 | Dark    |
-| Thunder   | #2F2F4F → #191932   | #FFD700 | Light   |
+Design philosophy: Dieter Rams. Less, but better. Every element earns its place.
 
 ## Typography
-- Font: System stack (-apple-system, BlinkMacSystemFont, Segoe UI)
-- Temperature: 3.5rem bold tabular-nums
-- Body: 1.1rem medium
-- Labels: 0.75rem uppercase tracking
-- Vibe copy: 1rem italic
 
-## Spacing
-8px grid: 4, 8, 16, 24, 32
+- **Primary**: Inter (400, 500, 600) -- body text, headings, labels
+- **Numeric**: JetBrains Mono (400, 500) -- all financial values, chart axes, timestamps, code
+- Loaded via `next/font/google`, tree-shaken to specified weights only
+
+### Scale
+
+| Token | Size | Usage |
+|-------|------|-------|
+| text-[24px] | 24px | Page headings (h1) |
+| text-[17px] | 17px | Section headings (h2), nav items |
+| text-[15px] | 15px | Body text, table cells, chat messages |
+| text-[13px] | 13px | Labels, secondary info, buttons |
+| text-[12px] | 12px | Timestamps, file sizes, captions |
+| text-[11px] | 11px | Mobile nav labels |
+
+### KPI Value Sizes
+
+- **Personal KPIs**: 28px (font-mono, font-medium)
+- **Fund overview KPIs**: 22px (font-mono, font-medium)
+
+## Color System
+
+CSS custom properties with light/dark mode via `prefers-color-scheme`.
+
+### Core Tokens
+
+| Token | Light | Dark |
+|-------|-------|------|
+| --background | #fafafa | #18181b |
+| --surface | #ffffff | #27272a |
+| --surface-raised | #f4f4f5 | #3f3f46 |
+| --border | #e4e4e7 | #52525b |
+| --border-subtle | #f4f4f5 | #27272a |
+| --text-primary | #18181b | #fafafa |
+| --text-secondary | #52525b | #d4d4d8 |
+| --text-muted | #a1a1aa | #71717a |
+
+### Accent & Semantic
+
+| Token | Light | Dark |
+|-------|-------|------|
+| --accent | var(--fund-accent, #3b82f6) | same |
+| --accent-subtle | var(--fund-accent-subtle, #eff6ff) | rgba(59,130,246,0.15) |
+| --positive | #16a34a | #22c55e |
+| --negative | #dc2626 | #ef4444 |
+| --warning | #d97706 | #f59e0b |
+| --error-bg | #fef2f2 | #450a0a |
+| --error-border | #fca5a5 | #991b1b |
+| --warning-bg | #fffbeb | #451a03 |
+| --success-bg | #f0fdf4 | #052e16 |
 
 ## Layout
-- Max-width: 420px centered
-- Mobile-first single column
-- Card-based sections with 16px border-radius
-- Backdrop blur on cards for depth
+
+- **Desktop**: Fixed left sidebar (60px collapsed, 240px expanded at lg) + content area
+- **Mobile**: Bottom navigation bar (56px), 3 items: Dashboard, Documents, Chat
+- **Content max-width**: 960px
+- **Chat max-width**: 720px
+- **Form max-width**: 380px
+- **Admin content max-width**: 800px
+
+## Components
+
+### KPI Card
+- Surface background with border
+- Value in font-mono at variant-specific size (28px primary, 22px secondary)
+- Trend indicator shown ONLY when prior period data exists (no fake arrows)
+- Trend: ArrowUp (positive), ArrowDown (negative), Minus (flat)
+
+### Chat Message
+- User: right-aligned, accent-subtle background
+- Assistant: left-aligned, surface background with border
+- Low confidence (0.70-0.75): warning left border + disclaimer text
+- Citations: expandable previews below message
+
+### Data Table
+- Sortable columns, alternating row backgrounds
+- Right-aligned numeric columns in font-mono
+
+### File Upload
+- Drag-and-drop zone with hover/valid/invalid states
+- Progress bar during upload
+- Success/error feedback inline
+
+### Inline Banner
+- 4 severities: error, warning, success, info
+- Left border accent + semantic background
+- Optional dismiss button
+
+## Spacing
+
+- Component padding: 24px (p-6)
+- Card gap: 12px (gap-3)
+- Section gap: 32px (mt-8)
+- Border radius: 8px (rounded-md)
+
+## Motion
+
+- Transition duration: 150ms
+- Skeleton pulse: 1.5s ease-in-out
+- Respects `prefers-reduced-motion`
 
 ## Accessibility
-- prefers-reduced-motion respected
-- All text meets WCAG AA on each palette (precomputed)
-- Semantic HTML landmarks
-- ARIA labels on interactive elements
-- Min touch targets: 48px
+
+- Skip-to-content link
+- ARIA labels on KPI cards (value + trend description)
+- Role="alert" on banners
+- Min touch target: 44x44px on mobile
+- Semantic HTML throughout
