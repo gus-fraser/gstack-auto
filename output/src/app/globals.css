@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-raised: #f4f4f5;
+  --border: #e4e4e7;
+  --border-subtle: #f4f4f5;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --accent: var(--fund-accent, #3b82f6);
+  --accent-subtle: var(--fund-accent-subtle, #eff6ff);
+  --positive: #16a34a;
+  --negative: #dc2626;
+  --warning: #d97706;
+  --error-bg: #fef2f2;
+  --error-border: #fca5a5;
+  --warning-bg: #fffbeb;
+  --success-bg: #f0fdf4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #18181b;
+    --surface: #27272a;
+    --surface-raised: #3f3f46;
+    --border: #52525b;
+    --border-subtle: #27272a;
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+    --text-muted: #71717a;
+    --accent-subtle: rgba(59, 130, 246, 0.15);
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --warning: #f59e0b;
+    --error-bg: #450a0a;
+    --error-border: #991b1b;
+    --warning-bg: #451a03;
+    --success-bg: #052e16;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+}
